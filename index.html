@@ -72,8 +72,7 @@ messages:[
 {role:'user',content:v}
 ],
 temperature:0.7,
-max_tokens:400
-})
+max_tokens:120})
 });
 let d=await r.json();
 if(r.ok===false)throw new Error('HTTP '+r.status);
