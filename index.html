@@ -50,7 +50,39 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 function addLog(s){logs.unshift({s,t:new Date().toLocaleString()});logs=logs.slice(0,30);localStorage.setItem('veronica_logs',JSON.stringify(logs));renderLogs()}
 function renderLogs(){el('logList').innerHTML=logs.length?logs.map(x=>`<div class="item">${esc(x.s)}<small>${esc(x.t)}</small></div>`).join(''):'<p style="color:var(--muted)">No activity yet.</p>'}
 function fromHome(){let v=el('homeInput').value.trim();if(!v)return;el('homeInput').value='';go('chat');el('chatInput').value=v;sendChat()}
-function sendChat(){let i=el('chatInput'),v=i.value.trim();if(!v)return;let c=el('chatbox');c.innerHTML+=`<div class="bubble me">${esc(v)}</div><div class="bubble bot">I received your message! ✨ This is the new dashboard demo. Connect a secure AI backend to enable real answers.</div>`;i.value='';c.scrollTop=c.scrollHeight;addLog('Sent a chat message')}
+async function sendChat(){
+let i=el('chatInput'),v=i.value.trim();
+if(v.length===0)return;
+let c=el('chatbox');
+c.innerHTML+='<div class="bubble me">'+esc(v)+'</div>';
+i.value='';
+let wait=document.createElement('div');
+wait.className='bubble bot';
+wait.textContent='Veronica is thinking...';
+c.appendChild(wait);
+c.scrollTop=c.scrollHeight;
+try{
+let r=await fetch('http://127.0.0.1:8080/v1/chat/completions',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+model:'Qwen3-8B',
+messages:[
+{role:'system',content:"You are Veronica, JOY's personal AI assistant. Be friendly, accurate and concise. Never invent personal facts."},
+{role:'user',content:v}
+],
+temperature:0.7,
+max_tokens:400
+})
+});
+let d=await r.json();
+if(r.ok===false)throw new Error('HTTP '+r.status);
+wait.textContent=d.choices?.[0]?.message?.content||'I could not create a reply.';
+}catch(e){
+wait.textContent='Connection error: '+e.message;
+}
+c.scrollTop=c.scrollHeight;
+}
 function saveMemory(){let i=el('memInput'),v=i.value.trim();if(!v)return;let a=JSON.parse(localStorage.getItem('veronica_memory')||'[]');a.unshift(v);localStorage.setItem('veronica_memory',JSON.stringify(a));i.value='';renderMemory();addLog('Saved a memory note')}
 function renderMemory(){let a=JSON.parse(localStorage.getItem('veronica_memory')||'[]');el('memList').innerHTML=a.length?a.map((v,n)=>`<div class="item">${esc(v)}<button onclick="delMemory(${n})" style="background:none;border:0;color:#f2aaff">✕</button></div>`).join(''):'<p style="color:var(--muted)">Your vault is waiting for its first note.</p>'}
 function delMemory(n){let a=JSON.parse(localStorage.getItem('veronica_memory')||'[]');a.splice(n,1);localStorage.setItem('veronica_memory',JSON.stringify(a));renderMemory()}
